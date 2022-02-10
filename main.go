@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/betalixt/gohome/services"
 	"github.com/spf13/viper"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
@@ -18,26 +19,18 @@ func main() {
 
 	app := fx.New(
 		fx.Provide(
-			NewLogger,
+			services.NewLogger,
 		),
 		fx.Invoke(Start),
 		fx.WithLogger(
-			func() fxevent.Logger {
-				return fxevent.NopLogger
+			func(logger *zap.Logger) fxevent.Logger {
+				return &fxevent.ZapLogger{Logger: logger}
 			},
 		),
 	)
 
 	app.Run()
 	app.Done()
-}
-
-func NewLogger() *zap.Logger {
-	logger, err := zap.NewProduction()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create logger: %v", err))
-	}
-	return logger
 }
 
 func loadConfig(
