@@ -4,32 +4,40 @@ import (
 	"fmt"
 
 	"github.com/spf13/viper"
+	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
 )
 
 func main() {
-	err := initLogger()
+	err := loadConfig("dev", "BLT_GOHK", "./configs", false)
 	if err != nil {
 		fmt.Println(err)
-		panic("Failed to initialize logger")
+		panic(fmt.Sprintf("Failed to load config: %v", err))
 	}
 
-	err = loadConfig("dev", "BLT_GOHK", "./configs", false)
-	if err != nil {
-		fmt.Println(err)
-		panic("Failed to load config")
-	}
+	app := fx.New(
+		fx.Provide(
+			NewLogger,
+		),
+		fx.Invoke(Start),
+		fx.WithLogger(
+			func() fxevent.Logger {
+				return fxevent.NopLogger
+			},
+		),
+	)
+
+	app.Run()
+	app.Done()
 }
 
-func initLogger () error {
+func NewLogger() *zap.Logger {
 	logger, err := zap.NewProduction()
 	if err != nil {
-		return err
+		panic(fmt.Sprintf("Failed to create logger: %v", err))
 	}
-	defer logger.Sync()
-
-
-	return nil
+	return logger
 }
 
 func loadConfig(
@@ -50,7 +58,7 @@ func loadConfig(
 		}
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return err
-		} 
+		}
 	}
 
 	// - Loading config from env
@@ -58,4 +66,3 @@ func loadConfig(
 	viper.AutomaticEnv()
 	return nil
 }
-
